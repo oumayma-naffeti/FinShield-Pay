@@ -75,7 +75,7 @@ resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
   ip_protocol                  = "tcp"
   from_port                    = var.app_port
   to_port                      = var.app_port
-  description                  = "Depuis l'ALB"
+  description                  = "Depuis ALB"
 }
 
 # ---------- Sorties des taches ECS ----------
@@ -95,7 +95,7 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_s3" {
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
-  description       = "ECS vers S3 (couches d'images ECR)"
+  description       = "ECS vers S3 (couches images ECR)"
 }
 
 resource "aws_vpc_security_group_egress_rule" "ecs_to_dynamodb" {
