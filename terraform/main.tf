@@ -72,3 +72,12 @@ module "waf" {
 
   project = var.project
 }
+data "aws_caller_identity" "me" {}
+
+module "frontend" {
+  source       = "./modules/frontend"
+  project      = var.project
+  bucket_name  = "${var.project}-frontend-${data.aws_caller_identity.me.account_id}"
+  api_endpoint = module.api_gateway.api_endpoint
+  web_acl_arn  = module.waf.web_acl_arn
+}
