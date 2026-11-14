@@ -63,3 +63,12 @@ module "api_gateway" {
   issuer_url         = module.cognito.issuer_url
   client_id          = module.cognito.client_id
 }
+module "waf" {
+  source = "./modules/waf"
+
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  project = var.project
+}
