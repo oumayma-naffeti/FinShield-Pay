@@ -48,3 +48,18 @@ module "ecs" {
   # Le service ECS ne peut etre cree qu'une fois le listener en place
   depends_on = [module.alb]
 }
+module "cognito" {
+  source  = "./modules/cognito"
+  project = var.project
+  region  = var.region
+}
+
+module "api_gateway" {
+  source             = "./modules/api_gateway"
+  project            = var.project
+  private_subnet_ids = module.network.private_subnet_ids
+  vpclink_sg_id      = module.security.vpclink_sg_id
+  listener_arn       = module.alb.listener_arn
+  issuer_url         = module.cognito.issuer_url
+  client_id          = module.cognito.client_id
+}
