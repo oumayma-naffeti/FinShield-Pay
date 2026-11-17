@@ -110,7 +110,7 @@ try {
   if ($logs -match "4242424242424242|4000000000000002") { Write-Host "ECHEC : un numero de carte est dans les journaux" -ForegroundColor Red }
   else { Write-Host "OK : aucun numero de carte dans les journaux" -ForegroundColor Green }
   
-    Step "14. Journaux d'API Gateway : presents, sans jeton"
+  Step "14. Journaux d'API Gateway : presents, sans jeton"
   $gw = $null
   for ($i = 0; $i -lt 12 -and -not $gw; $i++) {
     Start-Sleep -Seconds 5
@@ -119,7 +119,16 @@ try {
   if (-not $gw) { Write-Host "ECHEC : aucun journal API Gateway" -ForegroundColor Red }
   elseif ($gw -match "eyJ|Bearer") { Write-Host "ECHEC : un jeton apparait dans les journaux" -ForegroundColor Red }
   else { Write-Host "OK : journaux API Gateway presents, aucun jeton" -ForegroundColor Green }
-  
+    Step "15. Alarme API : rafale d'acces refuses"
+  Expect "Etat ALARM sous 2 a 5 minutes (12 requetes sans jeton = 12 reponses 401), puis e-mail SNS"
+  1..12 | ForEach-Object { curl.exe -s -o NUL "$API/api/payments" }
+  $state = ""
+  for ($i = 0; $i -lt 30 -and $state -ne "ALARM"; $i++) {
+    Start-Sleep -Seconds 10
+    $state = aws cloudwatch describe-alarms --alarm-names finshield-api-denied-requests --query "MetricAlarms[0].StateValue" --output text
+  }
+  if ($state -eq "ALARM") { Write-Host "OK : alarme declenchee" -ForegroundColor Green }
+  else { Write-Host "ECHEC : etat de l'alarme = $state" -ForegroundColor Red }
 }
 finally {
   Step "Fermeture du flux de test (retour a SRP uniquement)"
