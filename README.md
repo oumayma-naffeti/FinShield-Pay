@@ -1,5 +1,5 @@
 # FinShield Pay
-this is the password of the Exist Marchand : MotDePasse-Test-2026! ceci le mdp
+this is the password of the Exist Marchand : <<<<<<<<MotDePasse-Test-2026!>>>>>>>>>ceci le mdp
 Passerelle de paiement **simulée** multi-marchands sur AWS, réalisée par Latifa Nooemn, Oumayma Naffeti et Siwar Moussa. Projet pédagogique : aucun paiement réel, aucune certification PCI-DSS, uniquement des cartes de test.
 
 ## Architecture
