@@ -39,6 +39,12 @@ resource "aws_apigatewayv2_route" "api" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+# Journaux d'acces : requete, statut, erreur. Jamais d'en-tete Authorization.
+resource "aws_cloudwatch_log_group" "access" {
+  name              = "/aws/apigateway/${var.project}"
+  retention_in_days = 7
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.api.id
   name        = "$default"
@@ -47,5 +53,20 @@ resource "aws_apigatewayv2_stage" "default" {
   default_route_settings {
     throttling_rate_limit  = var.throttle_rate
     throttling_burst_limit = var.throttle_burst
+  }
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.access.arn
+    format = jsonencode({
+      requestId        = "$context.requestId"
+      ip               = "$context.identity.sourceIp"
+      requestTime      = "$context.requestTime"
+      httpMethod       = "$context.httpMethod"
+      routeKey         = "$context.routeKey"
+      status           = "$context.status"
+      responseLength   = "$context.responseLength"
+      authorizerError  = "$context.authorizer.error"
+      integrationError = "$context.integrationErrorMessage"
+    })
   }
 }
