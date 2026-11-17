@@ -20,3 +20,7 @@ variable "alert_email" {
 variable "web_acl_name" {
   type = string
 }
+variable "apigw_log_group_name" {
+  description = "Groupe de journaux d'acces d'API Gateway"
+  type        = string
+}

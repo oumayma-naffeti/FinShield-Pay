@@ -82,10 +82,11 @@ module "frontend" {
   web_acl_arn  = module.waf.web_acl_arn
 }
 module "monitoring" {
-  source              = "./modules/monitoring"
-  project             = var.project
-  trail_bucket_name   = "${var.project}-trail-${data.aws_caller_identity.me.account_id}"
-  cloudtrail_role_arn = data.aws_iam_role.lab.arn
-  alert_email         = var.alert_email
-  web_acl_name        = "${var.project}-waf"
+  source               = "./modules/monitoring"
+  project              = var.project
+  trail_bucket_name    = "${var.project}-trail-${data.aws_caller_identity.me.account_id}"
+  cloudtrail_role_arn  = data.aws_iam_role.lab.arn
+  alert_email          = var.alert_email
+  web_acl_name         = "${var.project}-waf"
+  apigw_log_group_name = module.api_gateway.access_log_group_name
 }
