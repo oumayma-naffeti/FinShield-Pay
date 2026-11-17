@@ -108,6 +108,13 @@ try {
   $logs = aws logs tail /ecs/finshield --since 30m
   if ($logs -match "4242424242424242|4000000000000002") { Write-Host "ECHEC : un numero de carte est dans les journaux" -ForegroundColor Red }
   else { Write-Host "OK : aucun numero de carte dans les journaux" -ForegroundColor Green }
+  
+  Step "14. Journaux d'API Gateway : presents, sans jeton"
+  Start-Sleep -Seconds 15
+  $gw = aws logs tail /aws/apigateway/finshield --since 15m
+  if (-not $gw) { Write-Host "ECHEC : aucun journal API Gateway" -ForegroundColor Red }
+  elseif ($gw -match "eyJ|Bearer") { Write-Host "ECHEC : un jeton apparait dans les journaux" -ForegroundColor Red }
+  else { Write-Host "OK : journaux API Gateway presents, aucun jeton" -ForegroundColor Green }
 }
 finally {
   Step "Fermeture du flux de test (retour a SRP uniquement)"
