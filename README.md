@@ -1,7 +1,13 @@
 # FinShield Pay
 this is the password of the Exist Marchand : <<<<<<<<MotDePasse-Test-2026!>>>>>>>>>ceci le mdp
 Passerelle de paiement **simulée** multi-marchands sur AWS, réalisée par Latifa Nooemn, Oumayma Naffeti et Siwar Moussa. Projet pédagogique : aucun paiement réel, aucune certification PCI-DSS, uniquement des cartes de test.
+to teste : 
 
+
+$env:AWS_ACCESS_KEY_ID     = Read-Host "Access key"
+$env:AWS_SECRET_ACCESS_KEY = Read-Host "Secret key"
+$env:AWS_SESSION_TOKEN     = Read-Host "Session token"
+$env:AWS_DEFAULT_REGION    = "us-east-1"
 ## Architecture
 
 Parcours d'une requête authentifiée :
