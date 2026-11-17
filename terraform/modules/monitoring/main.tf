@@ -77,3 +77,55 @@ resource "aws_cloudwatch_metric_alarm" "waf_blocked" {
     Region = "Global"
   }
 }
+# ---------- Detection 3 : acces refuses ou erreurs sur l'API ----------
+# Le champ "status" est ecrit entre guillemets dans les journaux : on compare des chaines.
+
+resource "aws_cloudwatch_log_metric_filter" "api_denied" {
+  name           = "${var.project}-api-denied"
+  log_group_name = var.apigw_log_group_name
+  pattern        = "{ ($.status = \"401\") || ($.status = \"403\") }"
+
+  metric_transformation {
+    name      = "ApiDeniedRequests"
+    namespace = "${var.project}/Security"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_denied" {
+  alarm_name          = "${var.project}-api-denied-requests"
+  namespace           = "${var.project}/Security"
+  metric_name         = "ApiDeniedRequests"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 1
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.security.arn]
+}
+
+resource "aws_cloudwatch_log_metric_filter" "api_errors" {
+  name           = "${var.project}-api-5xx"
+  log_group_name = var.apigw_log_group_name
+  pattern        = "{ $.status = \"5*\" }"
+
+  metric_transformation {
+    name      = "ApiServerErrors"
+    namespace = "${var.project}/Security"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_errors" {
+  alarm_name          = "${var.project}-api-5xx"
+  namespace           = "${var.project}/Security"
+  metric_name         = "ApiServerErrors"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 3
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.security.arn]
+}
