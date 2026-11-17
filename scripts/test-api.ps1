@@ -43,8 +43,9 @@ try {
   terraform "-chdir=$tf" apply -auto-approve -input=false "-target=module.cognito.aws_cognito_user_pool_client.portal"
   Check "ouverture du flux de test"
 
-  Step "Creation des marchands de test"
+    Step "Creation des marchands de test"
   foreach ($u in @("marchand1@example.com", "marchand2@example.com")) {
+    aws cognito-idp admin-delete-user --user-pool-id $POOL --username $u 2>$null
     aws cognito-idp admin-create-user --user-pool-id $POOL --username $u --message-action SUPPRESS | Out-Null
     Check "creation de $u"
     aws cognito-idp admin-set-user-password --user-pool-id $POOL --username $u --password $PW --permanent
@@ -108,6 +109,17 @@ try {
   $logs = aws logs tail /ecs/finshield --since 30m
   if ($logs -match "4242424242424242|4000000000000002") { Write-Host "ECHEC : un numero de carte est dans les journaux" -ForegroundColor Red }
   else { Write-Host "OK : aucun numero de carte dans les journaux" -ForegroundColor Green }
+  
+    Step "14. Journaux d'API Gateway : presents, sans jeton"
+  $gw = $null
+  for ($i = 0; $i -lt 12 -and -not $gw; $i++) {
+    Start-Sleep -Seconds 5
+    $gw = aws logs tail /aws/apigateway/finshield --since 15m
+  }
+  if (-not $gw) { Write-Host "ECHEC : aucun journal API Gateway" -ForegroundColor Red }
+  elseif ($gw -match "eyJ|Bearer") { Write-Host "ECHEC : un jeton apparait dans les journaux" -ForegroundColor Red }
+  else { Write-Host "OK : journaux API Gateway presents, aucun jeton" -ForegroundColor Green }
+  
 }
 finally {
   Step "Fermeture du flux de test (retour a SRP uniquement)"
