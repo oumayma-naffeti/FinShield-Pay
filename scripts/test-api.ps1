@@ -129,6 +129,15 @@ try {
   }
   if ($state -eq "ALARM") { Write-Host "OK : alarme declenchee" -ForegroundColor Green }
   else { Write-Host "ECHEC : etat de l'alarme = $state" -ForegroundColor Red }
+    Step "16. Connexion refusee : mauvais mot de passe"
+  Expect "NotAuthorizedException"
+  $bad = aws cognito-idp initiate-auth --auth-flow USER_PASSWORD_AUTH --client-id $CLIENT --auth-parameters "USERNAME=marchand1@example.com,PASSWORD=MauvaisMotDePasse-1!" 2>&1
+  if ($bad -match "NotAuthorizedException") { Write-Host "OK : connexion refusee" -ForegroundColor Green }
+  else { Write-Host "ECHEC : la connexion n'a pas ete refusee" -ForegroundColor Red }
+
+  Step "17. Jeton invalide (falsifie)"
+  Expect "401"
+  Api "GET" "/api/payments" "eyJhbGciOiJIUzI1NiJ9.faux.faux" $null
 }
 finally {
   Step "Fermeture du flux de test (retour a SRP uniquement)"
