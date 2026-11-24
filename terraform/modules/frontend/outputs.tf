@@ -1,7 +1,16 @@
-output "cloudfront_domain" {
-  value = aws_cloudfront_distribution.main.domain_name
+
+output "frontend_url" {
+  value = "${aws_api_gateway_stage.frontend.invoke_url}/"
 }
 
-output "distribution_arn" {
-  value = aws_cloudfront_distribution.main.arn
+output "frontend_origin" {
+  value = "https://${aws_api_gateway_rest_api.frontend.id}.execute-api.${var.region}.amazonaws.com"
+}
+
+output "frontend_api_id" {
+  value = aws_api_gateway_rest_api.frontend.id
+}
+
+output "frontend_stage_arn" {
+  value = aws_api_gateway_stage.frontend.arn
 }

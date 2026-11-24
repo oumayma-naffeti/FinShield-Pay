@@ -24,3 +24,7 @@ variable "apigw_log_group_name" {
   description = "Groupe de journaux d'acces d'API Gateway"
   type        = string
 }
+variable "region" {
+  description = "Region AWS utilisee pour le monitoring"
+  type        = string
+}

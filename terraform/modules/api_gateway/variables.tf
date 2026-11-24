@@ -31,3 +31,8 @@ variable "throttle_burst" {
   type    = number
   default = 100
 }
+variable "frontend_origin" {
+  description = "Origine HTTPS du frontend"
+  type        = string
+}
+

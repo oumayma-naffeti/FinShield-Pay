@@ -1,6 +1,6 @@
-resource "aws_wafv2_web_acl" "cloudfront" {
+resource "aws_wafv2_web_acl" "regional" {
   name  = "${var.project}-waf"
-  scope = "CLOUDFRONT"
+  scope = "REGIONAL"
 
   default_action {
     allow {}
@@ -56,5 +56,7 @@ resource "aws_wafv2_web_acl" "cloudfront" {
     sampled_requests_enabled   = true
   }
 
-  tags = { Name = "${var.project}-waf" }
+  tags = {
+    Name = "${var.project}-waf"
+  }
 }

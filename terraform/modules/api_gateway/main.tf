@@ -1,8 +1,15 @@
 resource "aws_apigatewayv2_api" "api" {
   name          = "${var.project}-api"
   protocol_type = "HTTP"
-}
 
+  # Demo locale uniquement : le portail tourne sur localhost:3000
+  cors_configuration {
+    allow_origins = [var.frontend_origin, "http://localhost:3000"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_headers = ["authorization", "content-type"]
+    max_age       = 300
+  }
+}
 resource "aws_apigatewayv2_vpc_link" "link" {
   name               = "${var.project}-vpclink"
   subnet_ids         = var.private_subnet_ids
@@ -31,12 +38,19 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   }
 }
 
+# Preflight CORS : OPTIONS ne doit pas exiger de JWT.
 resource "aws_apigatewayv2_route" "api" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "ANY /api/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+resource "aws_apigatewayv2_route" "options" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "OPTIONS /api/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
+  authorization_type = "NONE"
 }
 
 # Journaux d'acces : requete, statut, erreur. Jamais d'en-tete Authorization.
