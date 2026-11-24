@@ -5,3 +5,20 @@
 crash.log
 .env
 *.pem
+# Fichiers de sauvegarde locaux
+*.bak
+*.bak.*
+*.backup
+*.recovery
+*.safety
+
+# Secrets et fichiers locaux
+*.key
+.env.*
+__pycache__/
+*.pyc
+
+# Artefacts et dossiers temporaires
+/terraform/lambda/frontend.zip
+/terraform/lamda/
+*.bak*

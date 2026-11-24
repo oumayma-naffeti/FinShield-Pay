@@ -74,7 +74,7 @@ resource "aws_cloudwatch_metric_alarm" "waf_blocked" {
   dimensions = {
     WebACL = var.web_acl_name
     Rule   = "ALL"
-    Region = "Global"
+    Region = var.region
   }
 }
 # ---------- Detection 3 : acces refuses ou erreurs sur l'API ----------

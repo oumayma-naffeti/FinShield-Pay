@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinShield Pay - Console de démonstration</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#e2e8f0;--mut:#94a3b8;--ok:#22c55e;--ko:#ef4444;--warn:#f59e0b;--acc:#3b82f6}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  header{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:1px solid var(--line)}
+  h1{font-size:20px;margin:0}
+  h2{font-size:13px;margin:0 0 12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:24px 28px;max-width:1200px;margin:auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  input,select{width:100%;padding:9px;border-radius:6px;border:1px solid var(--line);background:#0b1220;color:var(--txt)}
+  button{padding:9px 14px;border:0;border-radius:6px;background:var(--acc);color:#fff;cursor:pointer;font-weight:600;margin:10px 8px 0 0}
+  button.sec{background:#475569}
+  button.red{background:#b91c1c}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px;border-bottom:1px solid var(--line)}
+  .badge{padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700}
+  .accepted{background:#14532d;color:#86efac}
+  .declined{background:#7f1d1d;color:#fca5a5}
+  pre{margin:10px 0 0;font-size:12px;white-space:pre-wrap;color:var(--mut)}
+  #log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto}
+  .s2{color:var(--ok)} .s4{color:var(--warn)} .s5{color:var(--ko)}
+  .mut{color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>FinShield Pay <span class="mut">· console de démonstration</span></h1>
+    <div class="mut">Navigateur → API Gateway (JWT) → VPC Link → ALB → ECS Fargate → DynamoDB</div>
+  </div>
+  <div>
+    <span id="who" class="mut">Non connecté</span>
+    <button id="btnLogin">Se connecter</button>
+    <button id="btnLogout" class="sec" style="display:none">Se déconnecter</button>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Nouveau paiement (cartes de test)</h2>
+    <label>Référence de commande</label>
+    <input id="ref">
+    <label>Montant (TND)</label>
+    <input id="amount" type="number" step="0.01" value="25.50">
+    <label>Carte</label>
+    <select id="card">
+      <option value="4242424242424242">4242 4242 4242 4242 (acceptée)</option>
+      <option value="4000000000000002">4000 0000 0000 0002 (refusée)</option>
+    </select>
+    <button id="btnPay" class="act">Payer</button>
+    <pre id="result"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Mes transactions</h2>
+    <button id="btnList" class="act" style="margin-top:0">Actualiser</button>
+    <table>
+      <thead><tr><th>Commande</th><th>Montant</th><th>Statut</th><th>Carte</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+
+  <section class="card full">
+    <h2>Démonstrations de sécurité</h2>
+    <button id="dNoToken" class="red">1. Appel sans jeton (401 attendu)</button>
+    <button id="dBadCard" class="act sec">2. Carte non autorisée (400 attendu)</button>
+    <button id="dConflict" class="act sec">3. Même commande, autre montant (409 attendu)</button>
+    <button id="dBurst" class="red">4. Rafale de 12 appels sans jeton (alarme + e-mail)</button>
+    <div style="display:flex;gap:10px;align-items:end;margin-top:6px">
+      <div style="flex:1"><label>5. Isolation : lire la commande d'un autre marchand (404 attendu)</label>
+      <input id="other" placeholder="référence d'une commande de l'autre marchand"></div>
+      <button id="dOther" class="act sec">Lire</button>
+    </div>
+    <div id="msg" class="mut" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card full">
+    <h2>Journal des requêtes</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+// ===== A REMPLIR avec les valeurs de l'étape 2 =====
+const CFG = {
+  api:      "https://kd4e7xdwz6.execute-api.us-east-1.amazonaws.com",
+  domain:   "https://finshield-578793975869.auth.us-east-1.amazoncognito.com",
+  clientId: "2126iucmpc3c61lp5a673fiasd",
+  redirect: "https://caed7dhybb.execute-api.us-east-1.amazonaws.com/prod/"
+};
+// ====================================================
+
+const $ = id => document.getElementById(id);
+let token = sessionStorage.getItem("id_token");
+
+const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const rand = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
+const parseJwt = t => JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+const newRef = () => "CMD-" + Date.now().toString(36).toUpperCase();
+
+// ---------- Connexion : Hosted UI Cognito, flux code + PKCE ----------
+async function login() {
+  const verifier = rand(48), state = rand(16);
+  sessionStorage.setItem("verifier", verifier);
+  sessionStorage.setItem("state", state);
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const p = new URLSearchParams({
+    response_type: "code", client_id: CFG.clientId, redirect_uri: CFG.redirect,
+    scope: "openid email", code_challenge_method: "S256", code_challenge: challenge, state
+  });
+  location.href = CFG.domain + "/oauth2/authorize?" + p;
+}
+
+function logout() {
+  sessionStorage.clear();
+  location.href = CFG.domain + "/logout?" + new URLSearchParams({ client_id: CFG.clientId, logout_uri: CFG.redirect });
+}
+
+async function handleRedirect() {
+  const q = new URLSearchParams(location.search);
+  if (!q.get("code")) return;
+  if (q.get("state") === sessionStorage.getItem("state")) {
+    const r = await fetch(CFG.domain + "/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code", client_id: CFG.clientId, code: q.get("code"),
+        redirect_uri: CFG.redirect, code_verifier: sessionStorage.getItem("verifier")
+      })
+    });
+    const j = await r.json();
+    if (j.id_token) { token = j.id_token; sessionStorage.setItem("id_token", token); }
+    else alert("Échec de connexion : " + (j.error || "inconnu"));
+  }
+  history.replaceState({}, "", CFG.redirect);
+}
+
+// ---------- Appels API ----------
+function logLine(method, path, status, ms, note) {
+  const d = document.createElement("div");
+  d.className = "s" + String(status)[0];
+  d.textContent = `${new Date().toLocaleTimeString()}  ${method} ${path}  ->  ${status}  (${ms} ms) ${note}`;
+  $("log").prepend(d);
+}
+
+async function api(method, path, body, withToken = true) {
+  const headers = {};
+  if (withToken && token) headers["Authorization"] = "Bearer " + token;
+  if (body) headers["Content-Type"] = "application/json";
+  const t0 = performance.now();
+  try {
+    const r = await fetch(CFG.api + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const data = await r.json().catch(() => ({}));
+    logLine(method, path, r.status, Math.round(performance.now() - t0), withToken ? "" : "(sans jeton)");
+    return { status: r.status, data };
+  } catch (e) {
+    logLine(method, path, "?", Math.round(performance.now() - t0), "(réseau ou CORS)");
+    return { status: 0, data: {} };
+  }
+}
+
+function show(res) { $("result").textContent = "HTTP " + res.status + "\n" + JSON.stringify(res.data, null, 2); }
+function say(t) { $("msg").textContent = t; }
+
+async function pay() {
+  const res = await api("POST", "/api/payments", {
+    order_ref: $("ref").value, amount: Number($("amount").value), card_number: $("card").value
+  });
+  show(res);
+  $("ref").value = newRef();
+  list();
+}
+
+async function list() {
+  const res = await api("GET", "/api/payments");
+  const tb = $("rows"); tb.replaceChildren();
+  (res.data.items || []).forEach(t => {
+    const tr = document.createElement("tr");
+    [t.order_ref, t.amount + " " + t.currency, t.status, "•••• " + t.card_last4].forEach((v, i) => {
+      const td = document.createElement("td");
+      if (i === 2) { const b = document.createElement("span"); b.className = "badge " + v; b.textContent = v; td.append(b); }
+      else td.textContent = v;
+      tr.append(td);
+    });
+    tb.append(tr);
+  });
+}
+
+// ---------- Démonstrations ----------
+async function dNoToken() {
+  const r = await api("GET", "/api/payments", null, false);
+  say(r.status === 401 ? "OK : API Gateway refuse l'appel sans jeton (401)." : "Statut reçu : " + r.status);
+}
+async function dBadCard() {
+  const r = await api("POST", "/api/payments", { order_ref: newRef(), amount: 10, card_number: "5555555555554444" });
+  show(r); say("Seules les cartes de test sont acceptées (400).");
+}
+async function dConflict() {
+  const ref = newRef();
+  await api("POST", "/api/payments", { order_ref: ref, amount: 10, card_number: "4242424242424242" });
+  const r = await api("POST", "/api/payments", { order_ref: ref, amount: 99, card_number: "4242424242424242" });
+  show(r); say("Même commande avec un montant différent : 409 (idempotence).");
+}
+async function dBurst() {
+  say("Envoi de 12 appels sans jeton...");
+  await Promise.all(Array.from({ length: 12 }, () => api("GET", "/api/payments", null, false)));
+  say("12 réponses 401 envoyées. L'alarme CloudWatch passe à ALARM sous 2 à 5 min, puis un e-mail SNS part vers l'équipe sécurité.");
+}
+async function dOther() {
+  const ref = $("other").value.trim();
+  if (!ref) return say("Saisis une référence de commande.");
+  const r = await api("GET", "/api/payments/" + encodeURIComponent(ref));
+  show(r); say(r.status === 404 ? "Isolation : ce marchand ne voit pas la commande de l'autre (404)." : "Statut : " + r.status);
+}
+
+// ---------- Affichage ----------
+function render() {
+  const on = !!token;
+  $("btnLogin").style.display = on ? "none" : "";
+  $("btnLogout").style.display = on ? "" : "none";
+  document.querySelectorAll(".act").forEach(b => b.disabled = !on);
+  if (on) {
+    const c = parseJwt(token);
+    $("who").textContent = `${c.email} · id ${c.sub.slice(0, 8)}… · jeton valide jusqu'à ${new Date(c.exp * 1000).toLocaleTimeString()}`;
+    list();
+  }
+}
+
+$("btnLogin").onclick = login;   $("btnLogout").onclick = logout;
+$("btnPay").onclick = pay;       $("btnList").onclick = list;
+$("dNoToken").onclick = dNoToken; $("dBadCard").onclick = dBadCard;
+$("dConflict").onclick = dConflict; $("dBurst").onclick = dBurst; $("dOther").onclick = dOther;
+$("ref").value = newRef();
+handleRedirect().then(render);
+</script>
+</body>
+</html>
+
